@@ -52,23 +52,25 @@ if uploaded_files:
             file_bytes = np.asarray(bytearray(file.getvalue()), dtype=np.uint8)
             img_array = cv2.imdecode(file_bytes, cv2.IMREAD_GRAYSCALE)
 
-            if img_array is not None:
+            if img_array is None:
+                st.error("Error processing this image.")
+            else:
                 resized_array = cv2.resize(img_array, (IMG_SIZE, IMG_SIZE))
                 flattened_array = resized_array.flatten().reshape(1, -1)
-                
-                prediction = model.predict(flattened_array)
-                confidence = model.predict_proba(flattened_array)
-                
-                result_class = CATEGORIES[prediction[0]]
-                confidence_score = max(confidence[0]) * 100
-                
-                if result_class == "Good Gear":
+
+                PASS_THRESHOLD = 0.90
+
+                pred_idx = int(model.predict(flattened_array)[0])
+                proba = model.predict_proba(flattened_array)[0]
+
+                result_class = CATEGORIES[pred_idx]
+                pred_conf = float(proba[pred_idx])
+
+                if result_class == "Good Gear" and pred_conf >= PASS_THRESHOLD:
                     st.success(f"Result: {result_class} - PASS")
-                else:
+                elif result_class == "Bad Gear":
                     st.error(f"Result: {result_class} - FAIL")
-                    
-                st.info(f"AI Confidence: {confidence_score:.2f}%")
-            else:
-                st.error("Error processing this image.")
-                
-        st.divider()
+                else:
+                    st.warning(f"Result: {result_class} - REVIEW (low confidence)")
+
+                st.info(f"AI Confidence: {pred_conf*100:.2f}%")
